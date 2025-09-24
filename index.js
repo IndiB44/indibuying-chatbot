@@ -27,12 +27,20 @@ const client = new OpenAI({
 // Webhook to handle chatbot messages
 app.post("/webhook", async (req, res) => {
   try {
-    const userMessage = req.body.message;
+    const { message: userMessage, threadId: existingThreadId } = req.body;
+    let thread;
 
-    // Create a thread
-    const thread = await client.beta.threads.create();
+    if (existingThreadId) {
+      // If a threadId was passed from the front-end, use it
+      console.log(`Continuing with existing thread: ${existingThreadId}`);
+      thread = { id: existingThreadId };
+    } else {
+      // If no threadId, create a new one for a new conversation
+      console.log("Creating a new thread.");
+      thread = await client.beta.threads.create();
+    }
 
-    // Add user's message to thread
+    // Add user's message to the thread
     await client.beta.threads.messages.create(thread.id, {
       role: "user",
       content: userMessage,
@@ -51,11 +59,13 @@ app.post("/webhook", async (req, res) => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } while (true);
 
-    // Get assistant's reply
+    // Get the latest assistant reply
     const messages = await client.beta.threads.messages.list(thread.id);
-    const assistantReply = messages.data[0].content[0].text.value;
+    const assistantReply = messages.data.find(m => m.role === 'assistant').content[0].text.value;
 
-    res.json({ reply: assistantReply });
+    // Respond with the reply AND the threadId
+    res.json({ reply: assistantReply, threadId: thread.id });
+
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ reply: "Sorry, there was an error processing your request." });

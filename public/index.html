@@ -120,50 +120,62 @@
   </div>
 
   <script>
-    const chatToggle = document.getElementById("chat-toggle");
-    const chatContainer = document.getElementById("chat-container");
-    const input = document.getElementById("input");
-    const send = document.getElementById("send");
-    const messages = document.getElementById("messages");
+  const chatToggle = document.getElementById("chat-toggle");
+  const chatContainer = document.getElementById("chat-container");
+  const input = document.getElementById("input");
+  const send = document.getElementById("send");
+  const messages = document.getElementById("messages");
 
-    chatToggle.addEventListener("click", () => {
-      chatContainer.classList.toggle("open");
-    });
+  // Attempt to retrieve an existing thread ID from the browser's session storage
+  let threadId = sessionStorage.getItem("chatThreadId");
 
-    function addMessage(text, sender) {
-      const div = document.createElement("div");
-      div.classList.add("message", sender);
+  chatToggle.addEventListener("click", () => {
+    chatContainer.classList.toggle("open");
+  });
 
-      // Format the text to display line breaks and bullet points
-      const formattedText = text.replace(/\*/g, "• ").replace(/\n/g, "<br>");
-      div.innerHTML = formattedText; // Use .innerHTML to render the formatting
+  function addMessage(text, sender) {
+    const div = document.createElement("div");
+    div.classList.add("message", sender);
 
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    }
+    // Format the text to display line breaks and bullet points
+    const formattedText = text.replace(/\*/g, "• ").replace(/\n/g, "<br>");
+    div.innerHTML = formattedText; // Use .innerHTML to render the formatting
 
-    send.addEventListener("click", async () => {
-      const text = input.value.trim();
-      if (!text) return;
-      addMessage(text, "user");
-      input.value = "";
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
 
-      try {
-        const res = await fetch("/webhook", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text })
-        });
-        const data = await res.json();
-        addMessage(data.reply || "No response", "bot");
-      } catch (err) {
-        addMessage("Error connecting to server", "bot");
+  send.addEventListener("click", async () => {
+    const text = input.value.trim();
+    if (!text) return;
+    addMessage(text, "user");
+    input.value = "";
+
+    try {
+      const res = await fetch("/webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Send the current message AND the threadId (which may be null)
+        body: JSON.stringify({ message: text, threadId: threadId })
+      });
+
+      const data = await res.json();
+
+      // If the server gave us a new threadId, store it
+      if (data.threadId) {
+        threadId = data.threadId;
+        sessionStorage.setItem("chatThreadId", threadId);
       }
-    });
 
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") send.click();
-    });
-  </script>
+      addMessage(data.reply || "No response", "bot");
+    } catch (err) {
+      addMessage("Error connecting to server", "bot");
+    }
+  });
+
+  input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") send.click();
+  });
+</script>
 </body>
 </html>
