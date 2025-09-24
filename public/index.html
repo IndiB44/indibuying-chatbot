@@ -23,9 +23,7 @@
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       transition: transform 0.2s;
     }
-    #chat-toggle:hover {
-      transform: scale(1.1);
-    }
+    #chat-toggle:hover { transform: scale(1.1); }
 
     /* Chat container */
     #chat-container {
@@ -56,6 +54,8 @@
       flex: 1;
       padding: 15px;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
 
     .message {
@@ -67,14 +67,18 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
+    /* User messages on right */
     .user {
       background: #d1e7dd;
       align-self: flex-end;
+      text-align: right;
     }
 
+    /* Bot messages on left */
     .bot {
       background: #f8d7da;
       align-self: flex-start;
+      text-align: left;
     }
 
     #input-container {
@@ -100,17 +104,13 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    #send:hover {
-      background: #0056b3;
-    }
+    #send:hover { background: #0056b3; }
   </style>
 </head>
 <body>
 
-  <!-- Floating chat button -->
   <button id="chat-toggle">💬</button>
 
-  <!-- Chat container -->
   <div id="chat-container">
     <div id="messages"></div>
     <div id="input-container">
@@ -126,7 +126,6 @@
     const send = document.getElementById("send");
     const messages = document.getElementById("messages");
 
-    // Toggle chat window with animation
     chatToggle.addEventListener("click", () => {
       chatContainer.classList.toggle("open");
     });
