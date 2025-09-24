@@ -2,6 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
 import OpenAI from "openai";
 
 dotenv.config();
@@ -10,11 +11,12 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// Serve static files from 'public' folder
 app.use(express.static("public"));
 
-// Serve a simple message on root
+// Serve index.html at root
 app.get("/", (req, res) => {
-  res.send("Server is running!");
+  res.sendFile(path.resolve("public/index.html"));
 });
 
 // Initialize OpenAI client
