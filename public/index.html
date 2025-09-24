@@ -4,12 +4,49 @@
   <meta charset="UTF-8">
   <title>Indibuying Chatbot</title>
   <style>
-    body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f4f4f4; }
-    #chat-container { width: 350px; height: 500px; border: 1px solid #ccc; border-radius: 10px; background: #fff; display: flex; flex-direction: column; overflow: hidden; }
+    body { font-family: Arial, sans-serif; margin: 0; }
+    
+    /* Floating button */
+    #chat-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: #007bff;
+      color: white;
+      font-size: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 999;
+    }
+
+    /* Chat container */
+    #chat-container {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      width: 350px;
+      height: 500px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+      display: none; /* initially hidden */
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      z-index: 998;
+    }
+
     #messages { flex: 1; padding: 10px; overflow-y: auto; }
     .message { margin: 5px 0; padding: 8px; border-radius: 5px; max-width: 80%; }
     .user { background: #d1e7dd; align-self: flex-end; }
     .bot { background: #f8d7da; align-self: flex-start; }
+
     #input-container { display: flex; border-top: 1px solid #ccc; }
     #input { flex: 1; padding: 10px; border: none; }
     #send { padding: 10px; border: none; background: #007bff; color: white; cursor: pointer; }
@@ -17,6 +54,8 @@
   </style>
 </head>
 <body>
+  <div id="chat-toggle">💬</div>
+
   <div id="chat-container">
     <div id="messages"></div>
     <div id="input-container">
@@ -26,9 +65,19 @@
   </div>
 
   <script>
+    const chatToggle = document.getElementById("chat-toggle");
+    const chatContainer = document.getElementById("chat-container");
     const input = document.getElementById("input");
     const send = document.getElementById("send");
     const messages = document.getElementById("messages");
+
+    chatToggle.addEventListener("click", () => {
+      if (chatContainer.style.display === "none") {
+        chatContainer.style.display = "flex";
+      } else {
+        chatContainer.style.display = "none";
+      }
+    });
 
     function addMessage(text, sender) {
       const div = document.createElement("div");
