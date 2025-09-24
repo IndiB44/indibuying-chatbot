@@ -133,7 +133,11 @@
     function addMessage(text, sender) {
       const div = document.createElement("div");
       div.classList.add("message", sender);
-      div.textContent = text;
+
+      // Format the text to display line breaks and bullet points
+      const formattedText = text.replace(/\*/g, "• ").replace(/\n/g, "<br>");
+      div.innerHTML = formattedText; // Use .innerHTML to render the formatting
+
       messages.appendChild(div);
       messages.scrollTop = messages.scrollHeight;
     }
