@@ -10,14 +10,19 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+app.use(express.static("public"));
+
+// Serve a simple message on root
 app.get("/", (req, res) => {
   res.send("Server is running!");
 });
 
+// Initialize OpenAI client
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Webhook to handle chatbot messages
 app.post("/webhook", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -55,5 +60,6 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

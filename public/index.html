@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Indibuying Chatbot</title>
+  <style>
+    body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f4f4f4; }
+    #chat-container { width: 350px; height: 500px; border: 1px solid #ccc; border-radius: 10px; background: #fff; display: flex; flex-direction: column; overflow: hidden; }
+    #messages { flex: 1; padding: 10px; overflow-y: auto; }
+    .message { margin: 5px 0; padding: 8px; border-radius: 5px; max-width: 80%; }
+    .user { background: #d1e7dd; align-self: flex-end; }
+    .bot { background: #f8d7da; align-self: flex-start; }
+    #input-container { display: flex; border-top: 1px solid #ccc; }
+    #input { flex: 1; padding: 10px; border: none; }
+    #send { padding: 10px; border: none; background: #007bff; color: white; cursor: pointer; }
+    #send:hover { background: #0056b3; }
+  </style>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="messages"></div>
+    <div id="input-container">
+      <input id="input" type="text" placeholder="Type a message...">
+      <button id="send">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById("input");
+    const send = document.getElementById("send");
+    const messages = document.getElementById("messages");
+
+    function addMessage(text, sender) {
+      const div = document.createElement("div");
+      div.classList.add("message", sender);
+      div.textContent = text;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    send.addEventListener("click", async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      addMessage(text, "user");
+      input.value = "";
+
+      try {
+        const res = await fetch("https://indibuying-chatbot.onrender.com/webhook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        addMessage(data.reply || "No response", "bot");
+      } catch (err) {
+        addMessage("Error connecting to server", "bot");
+      }
+    });
+
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") send.click();
+    });
+  </script>
+</body>
+</html>
