@@ -4,25 +4,27 @@
   <meta charset="UTF-8">
   <title>Indibuying Chatbot</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; }
-    
-    /* Floating button */
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f4f4; }
+
+    /* Floating chat button */
     #chat-toggle {
       position: fixed;
       bottom: 20px;
       right: 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 50%;
       width: 60px;
       height: 60px;
-      border-radius: 50%;
-      background-color: #007bff;
-      color: white;
-      font-size: 30px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      font-size: 28px;
       cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      z-index: 999;
+      z-index: 1000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      transition: transform 0.2s;
+    }
+    #chat-toggle:hover {
+      transform: scale(1.1);
     }
 
     /* Chat container */
@@ -30,32 +32,85 @@
       position: fixed;
       bottom: 90px;
       right: 20px;
-      width: 350px;
+      width: 360px;
       height: 500px;
-      border: 1px solid #ccc;
-      border-radius: 10px;
+      border-radius: 12px;
       background: #fff;
-      display: none; /* initially hidden */
+      display: flex;
       flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-      z-index: 998;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease-in-out;
+      z-index: 1000;
+    }
+    #chat-container.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
     }
 
-    #messages { flex: 1; padding: 10px; overflow-y: auto; }
-    .message { margin: 5px 0; padding: 8px; border-radius: 5px; max-width: 80%; }
-    .user { background: #d1e7dd; align-self: flex-end; }
-    .bot { background: #f8d7da; align-self: flex-start; }
+    #messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+    }
 
-    #input-container { display: flex; border-top: 1px solid #ccc; }
-    #input { flex: 1; padding: 10px; border: none; }
-    #send { padding: 10px; border: none; background: #007bff; color: white; cursor: pointer; }
-    #send:hover { background: #0056b3; }
+    .message {
+      margin: 8px 0;
+      padding: 10px 14px;
+      border-radius: 18px;
+      max-width: 75%;
+      word-wrap: break-word;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .user {
+      background: #d1e7dd;
+      align-self: flex-end;
+    }
+
+    .bot {
+      background: #f8d7da;
+      align-self: flex-start;
+    }
+
+    #input-container {
+      display: flex;
+      border-top: 1px solid #ccc;
+      background: #f1f1f1;
+    }
+
+    #input {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      font-size: 14px;
+      outline: none;
+    }
+
+    #send {
+      padding: 12px 18px;
+      border: none;
+      background: #007bff;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #send:hover {
+      background: #0056b3;
+    }
   </style>
 </head>
 <body>
-  <div id="chat-toggle">💬</div>
 
+  <!-- Floating chat button -->
+  <button id="chat-toggle">💬</button>
+
+  <!-- Chat container -->
   <div id="chat-container">
     <div id="messages"></div>
     <div id="input-container">
@@ -71,12 +126,9 @@
     const send = document.getElementById("send");
     const messages = document.getElementById("messages");
 
+    // Toggle chat window with animation
     chatToggle.addEventListener("click", () => {
-      if (chatContainer.style.display === "none") {
-        chatContainer.style.display = "flex";
-      } else {
-        chatContainer.style.display = "none";
-      }
+      chatContainer.classList.toggle("open");
     });
 
     function addMessage(text, sender) {
@@ -94,7 +146,7 @@
       input.value = "";
 
       try {
-        const res = await fetch("https://indibuying-chatbot.onrender.com/webhook", {
+        const res = await fetch("/webhook", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text })
