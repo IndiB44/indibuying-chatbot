@@ -119,6 +119,7 @@
     <div id="input-container">
       <textarea id="input" placeholder="Type a message..." rows="1"></textarea>
       <button id="send">Send</button>
+    }
     </div>
   </div>
 
@@ -168,6 +169,25 @@
       }
     };
 
+    // Function to start the conversation and get the first message
+    const startConversation = async () => {
+      // Only start if there is no existing conversation in this session
+      if (!threadId) {
+        try {
+          const res = await fetch("/start", { method: "POST" });
+          const data = await res.json();
+          if (data.threadId && data.greeting) {
+            threadId = data.threadId;
+            sessionStorage.setItem("chatThreadId", threadId);
+            addMessage(data.greeting, "bot");
+          }
+        } catch (err) {
+          console.error("Failed to start conversation:", err);
+          addMessage("Hello! I'm having a little trouble connecting right now.", "bot");
+        }
+      }
+    };
+
     send.addEventListener("click", sendMessage);
 
     input.addEventListener("keydown", (e) => {
@@ -183,6 +203,9 @@
       input.style.height = 'auto';
       input.style.height = (input.scrollHeight) + 'px';
     });
+    
+    // Call the function to start the conversation when the page loads
+    startConversation();
   </script>
 </body>
 </html>
