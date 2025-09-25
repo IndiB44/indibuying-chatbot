@@ -9,7 +9,7 @@
       margin: 0; 
       padding: 0; 
       background: transparent;
-      pointer-events: none;
+      pointer-events: none !important; /* Make the background click-through */
     }
 
     /* Floating chat button */
@@ -126,7 +126,6 @@
     }
     #send:hover { background: #0056b3; }
     
-    /* Typing indicator styles */
     .typing-indicator span {
       height: 8px;
       width: 8px;
@@ -202,7 +201,6 @@
       input.value = "";
       input.style.height = 'auto';
 
-      // Show the typing indicator
       const indicator = document.createElement('div');
       indicator.classList.add('message', 'bot', 'typing-indicator');
       indicator.innerHTML = '<span></span><span></span><span></span>';
@@ -221,18 +219,17 @@
           sessionStorage.setItem("chatThreadId", threadId);
         }
         
-        messages.removeChild(indicator); // Remove indicator
+        messages.removeChild(indicator);
         addMessage(data.reply || "No response", "bot");
 
       } catch (err) {
-        messages.removeChild(indicator); // Also remove on error
+        messages.removeChild(indicator);
         addMessage("Error connecting to server", "bot");
       }
     };
 
     const startConversation = async () => {
       if (!threadId) {
-        // Show a temporary indicator while fetching the greeting
         const indicator = document.createElement('div');
         indicator.classList.add('message', 'bot', 'typing-indicator');
         indicator.innerHTML = '<span></span><span></span><span></span>';
@@ -243,7 +240,7 @@
           const res = await fetch("/start", { method: "POST" });
           const data = await res.json();
 
-          messages.removeChild(indicator); // Remove indicator
+          messages.removeChild(indicator);
 
           if (data.threadId && data.greeting) {
             threadId = data.threadId;
@@ -251,7 +248,7 @@
             addMessage(data.greeting, "bot");
           }
         } catch (err) {
-          messages.removeChild(indicator); // Also remove on error
+          messages.removeChild(indicator);
           console.error("Failed to start conversation:", err);
           addMessage("Hello! I'm having a little trouble connecting right now.", "bot");
         }
