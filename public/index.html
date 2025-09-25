@@ -71,7 +71,7 @@
     .user {
       background: #d1e7dd;
       align-self: flex-end;
-      text-align: right;
+      /* text-align: right; has been removed to fix alignment */
     }
 
     /* Bot messages on left */
@@ -92,7 +92,10 @@
       padding: 12px;
       border: none;
       font-size: 14px;
+      font-family: Arial, sans-serif; /* Ensures font matches the rest of the page */
+      resize: none; /* Disables manual resizing by the user */
       outline: none;
+      max-height: 80px; /* Prevents the box from becoming too tall */
     }
 
     #send {
@@ -114,68 +117,72 @@
   <div id="chat-container">
     <div id="messages"></div>
     <div id="input-container">
-      <input id="input" type="text" placeholder="Type a message...">
+      <textarea id="input" placeholder="Type a message..." rows="1"></textarea>
       <button id="send">Send</button>
     </div>
   </div>
 
   <script>
-  const chatToggle = document.getElementById("chat-toggle");
-  const chatContainer = document.getElementById("chat-container");
-  const input = document.getElementById("input");
-  const send = document.getElementById("send");
-  const messages = document.getElementById("messages");
+    const chatToggle = document.getElementById("chat-toggle");
+    const chatContainer = document.getElementById("chat-container");
+    const input = document.getElementById("input");
+    const send = document.getElementById("send");
+    const messages = document.getElementById("messages");
 
-  // Attempt to retrieve an existing thread ID from the browser's session storage
-  let threadId = sessionStorage.getItem("chatThreadId");
+    let threadId = sessionStorage.getItem("chatThreadId");
 
-  chatToggle.addEventListener("click", () => {
-    chatContainer.classList.toggle("open");
-  });
+    chatToggle.addEventListener("click", () => {
+      chatContainer.classList.toggle("open");
+    });
 
-  function addMessage(text, sender) {
-    const div = document.createElement("div");
-    div.classList.add("message", sender);
-
-    // Format the text to display line breaks and bullet points
-    const formattedText = text.replace(/\*/g, "• ").replace(/\n/g, "<br>");
-    div.innerHTML = formattedText; // Use .innerHTML to render the formatting
-
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  send.addEventListener("click", async () => {
-    const text = input.value.trim();
-    if (!text) return;
-    addMessage(text, "user");
-    input.value = "";
-
-    try {
-      const res = await fetch("/webhook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Send the current message AND the threadId (which may be null)
-        body: JSON.stringify({ message: text, threadId: threadId })
-      });
-
-      const data = await res.json();
-
-      // If the server gave us a new threadId, store it
-      if (data.threadId) {
-        threadId = data.threadId;
-        sessionStorage.setItem("chatThreadId", threadId);
-      }
-
-      addMessage(data.reply || "No response", "bot");
-    } catch (err) {
-      addMessage("Error connecting to server", "bot");
+    function addMessage(text, sender) {
+      const div = document.createElement("div");
+      div.classList.add("message", sender);
+      const formattedText = text.replace(/\*/g, "• ").replace(/\n/g, "<br>");
+      div.innerHTML = formattedText;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
     }
-  });
 
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") send.click();
-  });
-</script>
+    const sendMessage = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      addMessage(text, "user");
+      input.value = "";
+      input.style.height = 'auto'; // Reset textarea height
+
+      try {
+        const res = await fetch("/webhook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, threadId: threadId })
+        });
+        const data = await res.json();
+        if (data.threadId) {
+          threadId = data.threadId;
+          sessionStorage.setItem("chatThreadId", threadId);
+        }
+        addMessage(data.reply || "No response", "bot");
+      } catch (err) {
+        addMessage("Error connecting to server", "bot");
+      }
+    };
+
+    send.addEventListener("click", sendMessage);
+
+    input.addEventListener("keydown", (e) => {
+      // Send message on Enter but not on Shift+Enter
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Prevents new line from being added
+        sendMessage();
+      }
+    });
+
+    // Auto-resize the textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = (input.scrollHeight) + 'px';
+    });
+  </script>
 </body>
 </html>
