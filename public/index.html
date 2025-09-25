@@ -22,6 +22,7 @@
       z-index: 1000;
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       transition: transform 0.2s;
+      pointer-events: auto; /* ADDED: This makes ONLY the button clickable again */
     }
     #chat-toggle:hover { transform: scale(1.1); }
 
@@ -71,7 +72,6 @@
     .user {
       background: #d1e7dd;
       align-self: flex-end;
-      /* text-align: right; has been removed to fix alignment */
     }
 
     /* Bot messages on left */
@@ -92,10 +92,10 @@
       padding: 12px;
       border: none;
       font-size: 14px;
-      font-family: Arial, sans-serif; /* Ensures font matches the rest of the page */
-      resize: none; /* Disables manual resizing by the user */
+      font-family: Arial, sans-serif;
+      resize: none;
       outline: none;
-      max-height: 80px; /* Prevents the box from becoming too tall */
+      max-height: 80px;
     }
 
     #send {
@@ -149,7 +149,7 @@
       if (!text) return;
       addMessage(text, "user");
       input.value = "";
-      input.style.height = 'auto'; // Reset textarea height
+      input.style.height = 'auto';
 
       try {
         const res = await fetch("/webhook", {
@@ -168,9 +168,7 @@
       }
     };
 
-    // Function to start the conversation and get the first message
     const startConversation = async () => {
-      // Only start if there is no existing conversation in this session
       if (!threadId) {
         try {
           const res = await fetch("/start", { method: "POST" });
@@ -190,20 +188,17 @@
     send.addEventListener("click", sendMessage);
 
     input.addEventListener("keydown", (e) => {
-      // Send message on Enter but not on Shift+Enter
       if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault(); // Prevents new line from being added
+        e.preventDefault();
         sendMessage();
       }
     });
 
-    // Auto-resize the textarea
     input.addEventListener('input', () => {
       input.style.height = 'auto';
       input.style.height = (input.scrollHeight) + 'px';
     });
     
-    // Call the function to start the conversation when the page loads
     startConversation();
   </script>
 </body>
