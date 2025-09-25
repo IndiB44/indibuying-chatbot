@@ -9,7 +9,6 @@
       margin: 0; 
       padding: 0; 
       background: transparent;
-      pointer-events: none !important; /* Make the background click-through */
     }
 
     /* Floating chat button */
@@ -28,9 +27,29 @@
       z-index: 1000;
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       transition: transform 0.2s;
-      pointer-events: auto;
     }
     #chat-toggle:hover { transform: scale(1.1); }
+    
+    #unread-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background-color: red;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      font-size: 14px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: scale(0);
+      transition: transform 0.2s ease;
+    }
+    #unread-badge.visible {
+      transform: scale(1);
+    }
 
     /* Chat container */
     #chat-container {
@@ -65,34 +84,41 @@
       flex-direction: column;
     }
 
-    .message {
+    .message-wrapper {
       display: flex;
       flex-direction: column;
       margin: 8px 0;
+      max-width: 75%;
+    }
+    .message {
       padding: 10px 14px;
       border-radius: 18px;
-      max-width: 75%;
       word-wrap: break-word;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    
     .timestamp {
       font-size: 0.75em;
       color: #6c757d;
       margin-top: 5px;
+      padding: 0 5px;
     }
 
     .user {
-      background: #d1e7dd;
       align-self: flex-end;
+    }
+    .user .message {
+      background: #d1e7dd;
     }
     .user .timestamp {
       text-align: right;
     }
 
     .bot {
-      background: #f8d7da;
       align-self: flex-start;
+    }
+    .bot .message {
+      background: #f8d7da;
+      text-align: left;
     }
     .bot .timestamp {
       text-align: left;
@@ -103,55 +129,33 @@
       border-top: 1px solid #ccc;
       background: #f1f1f1;
     }
-
     #input {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      font-size: 14px;
-      font-family: Arial, sans-serif;
-      resize: none;
-      outline: none;
-      max-height: 80px;
+      flex: 1; padding: 12px; border: none; font-size: 14px; font-family: Arial, sans-serif;
+      resize: none; outline: none; max-height: 80px;
     }
-
     #send {
-      padding: 12px 18px;
-      border: none;
-      background: #007bff;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
+      padding: 12px 18px; border: none; background: #007bff; color: white; font-weight: bold;
+      cursor: pointer; transition: background 0.2s;
     }
     #send:hover { background: #0056b3; }
     
+    .typing-indicator {
+      flex-direction: row !important; /* Horizontally align dots */
+      align-items: center;
+      padding: 15px 14px !important;
+    }
     .typing-indicator span {
-      height: 8px;
-      width: 8px;
-      background-color: #9E9E9E;
-      border-radius: 50%;
-      display: inline-block;
-      margin: 0 1px;
-      animation: blink 1.4s infinite both;
+      height: 8px; width: 8px; background-color: #9E9E9E; border-radius: 50%;
+      display: inline-block; margin: 0 1px; animation: blink 1.4s infinite both;
     }
-    .typing-indicator span:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-    .typing-indicator span:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-    @keyframes blink {
-      0% { opacity: 0.2; }
-      20% { opacity: 1; }
-      100% { opacity: 0.2; }
-    }
-
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
   </style>
 </head>
 <body>
 
-  <button id="chat-toggle">💬</button>
+  <button id="chat-toggle">💬<span id="unread-badge"></span></button>
 
   <div id="chat-container">
     <div id="messages"></div>
@@ -167,36 +171,60 @@
     const input = document.getElementById("input");
     const send = document.getElementById("send");
     const messages = document.getElementById("messages");
+    const unreadBadge = document.getElementById("unread-badge");
 
     let threadId = sessionStorage.getItem("chatThreadId");
+    let unreadCount = 0;
+
+    function updateBadge() {
+      if (unreadCount > 0) {
+        unreadBadge.textContent = unreadCount;
+        unreadBadge.classList.add('visible');
+      } else {
+        unreadBadge.classList.remove('visible');
+      }
+    }
 
     chatToggle.addEventListener("click", () => {
-      chatContainer.classList.toggle("open");
+      const isOpen = chatContainer.classList.toggle("open");
+      // Send message to parent window to resize the iframe
+      window.parent.postMessage(isOpen ? 'chatbot-open' : 'chatbot-close', '*');
+      
+      if (isOpen) {
+        unreadCount = 0;
+        updateBadge();
+      }
     });
 
     function addMessage(text, sender) {
-      const messageDiv = document.createElement("div");
-      messageDiv.classList.add("message", sender);
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("message-wrapper", sender);
 
-      const contentDiv = document.createElement("div");
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("message");
       const formattedText = text.replace(/\*/g, "• ").replace(/\n/g, "<br>");
-      contentDiv.innerHTML = formattedText;
+      messageDiv.innerHTML = formattedText;
       
       const timestampDiv = document.createElement("div");
       timestampDiv.classList.add("timestamp");
       const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       timestampDiv.textContent = time;
 
-      messageDiv.appendChild(contentDiv);
-      messageDiv.appendChild(timestampDiv);
-      messages.appendChild(messageDiv);
+      wrapper.appendChild(messageDiv);
+      wrapper.appendChild(timestampDiv);
+      messages.appendChild(wrapper);
       messages.scrollTop = messages.scrollHeight;
+
+      // Increment unread count if message is from bot and chat is closed
+      if (sender === 'bot' && !chatContainer.classList.contains('open')) {
+        unreadCount++;
+        updateBadge();
+      }
     }
 
     const sendMessage = async () => {
       const text = input.value.trim();
       if (!text) return;
-      
       addMessage(text, "user");
       input.value = "";
       input.style.height = 'auto';
@@ -209,19 +237,16 @@
 
       try {
         const res = await fetch("/webhook", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text, threadId: threadId })
         });
         const data = await res.json();
+        messages.removeChild(indicator);
         if (data.threadId) {
           threadId = data.threadId;
           sessionStorage.setItem("chatThreadId", threadId);
         }
-        
-        messages.removeChild(indicator);
         addMessage(data.reply || "No response", "bot");
-
       } catch (err) {
         messages.removeChild(indicator);
         addMessage("Error connecting to server", "bot");
@@ -235,13 +260,10 @@
         indicator.innerHTML = '<span></span><span></span><span></span>';
         messages.appendChild(indicator);
         messages.scrollTop = messages.scrollHeight;
-
         try {
           const res = await fetch("/start", { method: "POST" });
           const data = await res.json();
-
           messages.removeChild(indicator);
-
           if (data.threadId && data.greeting) {
             threadId = data.threadId;
             sessionStorage.setItem("chatThreadId", threadId);
@@ -256,17 +278,11 @@
     };
 
     send.addEventListener("click", sendMessage);
-
     input.addEventListener("keydown", (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
-
     input.addEventListener('input', () => {
-      input.style.height = 'auto';
-      input.style.height = (input.scrollHeight) + 'px';
+      input.style.height = 'auto'; input.style.height = (input.scrollHeight) + 'px';
     });
     
     startConversation();
