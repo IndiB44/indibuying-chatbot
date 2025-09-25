@@ -9,6 +9,7 @@
       margin: 0; 
       padding: 0; 
       background: transparent;
+      overflow: hidden; /* Prevents scrollbars from clipping the view */
     }
 
     /* Floating chat button */
@@ -140,7 +141,7 @@
     #send:hover { background: #0056b3; }
     
     .typing-indicator {
-      flex-direction: row !important; /* Horizontally align dots */
+      flex-direction: row !important;
       align-items: center;
       padding: 15px 14px !important;
     }
@@ -187,9 +188,7 @@
 
     chatToggle.addEventListener("click", () => {
       const isOpen = chatContainer.classList.toggle("open");
-      // Send message to parent window to resize the iframe
       window.parent.postMessage(isOpen ? 'chatbot-open' : 'chatbot-close', '*');
-      
       if (isOpen) {
         unreadCount = 0;
         updateBadge();
@@ -215,7 +214,6 @@
       messages.appendChild(wrapper);
       messages.scrollTop = messages.scrollHeight;
 
-      // Increment unread count if message is from bot and chat is closed
       if (sender === 'bot' && !chatContainer.classList.contains('open')) {
         unreadCount++;
         updateBadge();
