@@ -4,7 +4,13 @@
   <meta charset="UTF-8">
   <title>Indibuying Chatbot</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: transparent; }
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 0; 
+      padding: 0; 
+      background: transparent;
+      pointer-events: none;
+    }
 
     /* Floating chat button */
     #chat-toggle {
@@ -22,7 +28,7 @@
       z-index: 1000;
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       transition: transform 0.2s;
-      pointer-events: auto; /* ADDED: This makes ONLY the button clickable again */
+      pointer-events: auto;
     }
     #chat-toggle:hover { transform: scale(1.1); }
 
@@ -60,6 +66,8 @@
     }
 
     .message {
+      display: flex;
+      flex-direction: column;
       margin: 8px 0;
       padding: 10px 14px;
       border-radius: 18px;
@@ -67,17 +75,26 @@
       word-wrap: break-word;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    
+    .timestamp {
+      font-size: 0.75em;
+      color: #6c757d;
+      margin-top: 5px;
+    }
 
-    /* User messages on right */
     .user {
       background: #d1e7dd;
       align-self: flex-end;
     }
+    .user .timestamp {
+      text-align: right;
+    }
 
-    /* Bot messages on left */
     .bot {
       background: #f8d7da;
       align-self: flex-start;
+    }
+    .bot .timestamp {
       text-align: left;
     }
 
@@ -108,6 +125,29 @@
       transition: background 0.2s;
     }
     #send:hover { background: #0056b3; }
+    
+    /* Typing indicator styles */
+    .typing-indicator span {
+      height: 8px;
+      width: 8px;
+      background-color: #9E9E9E;
+      border-radius: 50%;
+      display: inline-block;
+      margin: 0 1px;
+      animation: blink 1.4s infinite both;
+    }
+    .typing-indicator span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .typing-indicator span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    @keyframes blink {
+      0% { opacity: 0.2; }
+      20% { opacity: 1; }
+      100% { opacity: 0.2; }
+    }
+
   </style>
 </head>
 <body>
@@ -136,20 +176,38 @@
     });
 
     function addMessage(text, sender) {
-      const div = document.createElement("div");
-      div.classList.add("message", sender);
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("message", sender);
+
+      const contentDiv = document.createElement("div");
       const formattedText = text.replace(/\*/g, "• ").replace(/\n/g, "<br>");
-      div.innerHTML = formattedText;
-      messages.appendChild(div);
+      contentDiv.innerHTML = formattedText;
+      
+      const timestampDiv = document.createElement("div");
+      timestampDiv.classList.add("timestamp");
+      const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      timestampDiv.textContent = time;
+
+      messageDiv.appendChild(contentDiv);
+      messageDiv.appendChild(timestampDiv);
+      messages.appendChild(messageDiv);
       messages.scrollTop = messages.scrollHeight;
     }
 
     const sendMessage = async () => {
       const text = input.value.trim();
       if (!text) return;
+      
       addMessage(text, "user");
       input.value = "";
       input.style.height = 'auto';
+
+      // Show the typing indicator
+      const indicator = document.createElement('div');
+      indicator.classList.add('message', 'bot', 'typing-indicator');
+      indicator.innerHTML = '<span></span><span></span><span></span>';
+      messages.appendChild(indicator);
+      messages.scrollTop = messages.scrollHeight;
 
       try {
         const res = await fetch("/webhook", {
@@ -162,23 +220,38 @@
           threadId = data.threadId;
           sessionStorage.setItem("chatThreadId", threadId);
         }
+        
+        messages.removeChild(indicator); // Remove indicator
         addMessage(data.reply || "No response", "bot");
+
       } catch (err) {
+        messages.removeChild(indicator); // Also remove on error
         addMessage("Error connecting to server", "bot");
       }
     };
 
     const startConversation = async () => {
       if (!threadId) {
+        // Show a temporary indicator while fetching the greeting
+        const indicator = document.createElement('div');
+        indicator.classList.add('message', 'bot', 'typing-indicator');
+        indicator.innerHTML = '<span></span><span></span><span></span>';
+        messages.appendChild(indicator);
+        messages.scrollTop = messages.scrollHeight;
+
         try {
           const res = await fetch("/start", { method: "POST" });
           const data = await res.json();
+
+          messages.removeChild(indicator); // Remove indicator
+
           if (data.threadId && data.greeting) {
             threadId = data.threadId;
             sessionStorage.setItem("chatThreadId", threadId);
             addMessage(data.greeting, "bot");
           }
         } catch (err) {
+          messages.removeChild(indicator); // Also remove on error
           console.error("Failed to start conversation:", err);
           addMessage("Hello! I'm having a little trouble connecting right now.", "bot");
         }
