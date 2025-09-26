@@ -5,17 +5,17 @@ import dotenv from "dotenv";
 import path from "path";
 import OpenAI from "openai";
 
-// Correct, specific imports for Zoho SDK
-import { SDKInitializer } from "@zohocrm/nodejs-sdk-2.0/routes/initializer.js";
-import { UserSignature } from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
-import { USDataCenter } from "@zohocrm/nodejs-sdk-2.0/routes/dc/us_data_center.js";
-import { OAuthToken } from "@zohocrm/nodejs-sdk-2.0/models/authenticator/oauth_token.js";
-import { SDKConfig } from "@zohocrm/nodejs-sdk-2.0/routes/sdk_config.js";
-import { RecordOperations } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
-import { BodyWrapper } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/body_wrapper.js";
-import { Record } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
-import { Field } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/field.js";
-
+// Corrected Zoho SDK imports for CommonJS compatibility
+import Initializer from "@zohocrm/nodejs-sdk-2.0/routes/initializer.js";
+const { SDKInitializer } = Initializer;
+import UserSignature from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
+import USDataCenter from "@zohocrm/nodejs-sdk-2.0/routes/dc/us_data_center.js";
+import OAuthToken from "@zohocrm/nodejs-sdk-2.0/models/authenticator/oauth_token.js";
+import SDKConfig from "@zohocrm/nodejs-sdk-2.0/routes/sdk_config.js";
+import RecordOperations from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
+import BodyWrapper from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/body_wrapper.js";
+import Record from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
+import Field from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/field.js";
 
 dotenv.config();
 
@@ -31,7 +31,7 @@ async function initializeZohoSDK() {
     return;
   }
   const user = new UserSignature(process.env.LEAD_NOTIFICATION_EMAIL);
-  const environment = USDataCenter.PRODUCTION();
+  const environment = USDataCenter.USDataCenter.PRODUCTION();
   const token = new OAuthToken({
       clientId: process.env.ZOHO_CLIENT_ID,
       clientSecret: process.env.ZOHO_CLIENT_SECRET,
