@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import path from "path";
 import OpenAI from "openai";
 
-// Corrected Zoho SDK imports using the default export for CJS compatibility
+// Corrected Zoho SDK imports for CommonJS compatibility
 import UserSignature_1 from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
 const UserSignature = UserSignature_1.UserSignature;
 import Initializer from "@zohocrm/nodejs-sdk-2.0/routes/initializer.js";
@@ -165,4 +165,4 @@ app.post("/webhook", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
