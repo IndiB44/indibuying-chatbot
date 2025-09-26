@@ -5,25 +5,24 @@ import dotenv from "dotenv";
 import path from "path";
 import OpenAI from "openai";
 
-// Corrected Zoho SDK imports for CommonJS compatibility
-import UserSignature_1 from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
-const UserSignature = UserSignature_1.UserSignature;
+// Corrected Zoho SDK imports using the 'default' property for CommonJS modules
 import Initializer from "@zohocrm/nodejs-sdk-2.0/routes/initializer.js";
-const { SDKInitializer } = Initializer;
-import USDataCenter_1 from "@zohocrm/nodejs-sdk-2.0/routes/dc/us_data_center.js";
-const USDataCenter = USDataCenter_1.USDataCenter;
-import OAuthToken_1 from "@zohocrm/nodejs-sdk-2.0/models/authenticator/oauth_token.js";
-const OAuthToken = OAuthToken_1.OAuthToken;
-import SDKConfig_1 from "@zohocrm/nodejs-sdk-2.0/routes/sdk_config.js";
-const SDKConfig = SDKConfig_1.SDKConfig;
-import RecordOperations_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
-const RecordOperations = RecordOperations_1.RecordOperations;
-import BodyWrapper_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/body_wrapper.js";
-const BodyWrapper = BodyWrapper_1.BodyWrapper;
-import Record_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
-const Record = Record_1.Record;
-import Field_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/field.js";
-const Field = Field_1.Field;
+const SDKInitializer = Initializer.SDKInitializer;
+import UserSignature from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
+import USDataCenter from "@zohocrm/nodejs-sdk-2.0/routes/dc/us_data_center.js";
+const { USDataCenter: { PRODUCTION } } = USDataCenter;
+import OAuthToken from "@zohocrm/nodejs-sdk-2.0/models/authenticator/oauth_token.js";
+const { OAuthToken: AuthToken } = OAuthToken;
+import SDKConfig from "@zohocrm/nodejs-sdk-2.0/routes/sdk_config.js";
+const { SDKConfig: Config } = SDKConfig;
+import RecordOperations from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
+const { RecordOperations: ZRecordOperations } = RecordOperations;
+import BodyWrapper from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/body_wrapper.js";
+const { BodyWrapper: ZBodyWrapper } = BodyWrapper;
+import Record from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
+const { Record: ZRecord } = Record;
+import Field from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/field.js";
+const { Field: ZField } = Field;
 
 
 dotenv.config();
@@ -40,13 +39,13 @@ async function initializeZohoSDK() {
     return;
   }
   const user = new UserSignature(process.env.LEAD_NOTIFICATION_EMAIL);
-  const environment = USDataCenter.PRODUCTION();
-  const token = new OAuthToken({
+  const environment = PRODUCTION();
+  const token = new AuthToken({
       clientId: process.env.ZOHO_CLIENT_ID,
       clientSecret: process.env.ZOHO_CLIENT_SECRET,
       refreshToken: process.env.ZOHO_REFRESH_TOKEN,
   });
-  const sdkConfig = new SDKConfig({});
+  const sdkConfig = new Config({});
   await SDKInitializer.initialize(user, environment, token, sdkConfig, null);
   console.log("Zoho SDK Initialized Successfully.");
 }
@@ -85,13 +84,13 @@ async function sendToZohoCRM(threadId) {
       return;
     }
     
-    const recordOperations = new RecordOperations();
-    const requestBody = new BodyWrapper();
+    const recordOperations = new ZRecordOperations();
+    const requestBody = new ZBodyWrapper();
     const records = [];
-    const contactRecord = new Record();
-    contactRecord.addFieldValue(Field.Contacts.EMAIL, userEmail);
-    contactRecord.addFieldValue(Field.Contacts.LAST_NAME, userEmail.split('@')[0]);
-    contactRecord.addFieldValue(Field.Contacts.LEAD_SOURCE, "Chatbot");
+    const contactRecord = new ZRecord();
+    contactRecord.addFieldValue(ZField.Contacts.EMAIL, userEmail);
+    contactRecord.addFieldValue(ZField.Contacts.LAST_NAME, userEmail.split('@')[0]);
+    contactRecord.addFieldValue(ZField.Contacts.LEAD_SOURCE, "Chatbot");
     records.push(contactRecord);
     requestBody.setData(records);
 
@@ -102,14 +101,14 @@ async function sendToZohoCRM(threadId) {
     const contactId = successResponse.getDetails().id;
     console.log(`Created new contact in Zoho with ID: ${contactId}`);
 
-    const notesRequestBody = new BodyWrapper();
+    const notesRequestBody = new ZBodyWrapper();
     const notesRecords = [];
-    const noteRecord = new Record();
-    noteRecord.addFieldValue(Field.Notes.NOTE_TITLE, `Chatbot Transcript - ${new Date().toLocaleDateString()}`);
-    noteRecord.addFieldValue(Field.Notes.NOTE_CONTENT, transcript);
-    const parentRecord = new Record();
+    const noteRecord = new ZRecord();
+    noteRecord.addFieldValue(ZField.Notes.NOTE_TITLE, `Chatbot Transcript - ${new Date().toLocaleDateString()}`);
+    noteRecord.addFieldValue(ZField.Notes.NOTE_CONTENT, transcript);
+    const parentRecord = new ZRecord();
     parentRecord.setId(contactId);
-    noteRecord.addFieldValue(Field.Notes.PARENT_ID, parentRecord);
+    noteRecord.addFieldValue(ZField.Notes.PARENT_ID, parentRecord);
     notesRecords.push(noteRecord);
     notesRequestBody.setData(notesRecords);
 
