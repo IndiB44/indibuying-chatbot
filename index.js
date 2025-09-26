@@ -4,8 +4,18 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import OpenAI from "openai";
-// The Zoho SDK is now imported as a single object
-import ZCRMRMSDK from "@zohocrm/nodejs-sdk-2.0";
+
+// Correct, specific imports for Zoho SDK
+import { SDKInitializer } from "@zohocrm/nodejs-sdk-2.0/routes/initializer.js";
+import { UserSignature } from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
+import { USDataCenter } from "@zohocrm/nodejs-sdk-2.0/routes/dc/us_data_center.js";
+import { OAuthToken } from "@zohocrm/nodejs-sdk-2.0/models/authenticator/oauth_token.js";
+import { SDKConfig } from "@zohocrm/nodejs-sdk-2.0/routes/sdk_config.js";
+import { RecordOperations } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
+import { BodyWrapper } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/body_wrapper.js";
+import { Record } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
+import { Field } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/field.js";
+
 
 dotenv.config();
 
@@ -20,17 +30,15 @@ async function initializeZohoSDK() {
     console.log("Zoho credentials not fully configured. SDK not initialized.");
     return;
   }
-  // All Zoho classes are now accessed through the main ZCRMRMSDK object
-  const user = new ZCRMRMSDK.UserSignature(process.env.LEAD_NOTIFICATION_EMAIL);
-  const environment = ZCRMRMSDK.USDataCenter.PRODUCTION();
-  const token = new ZCRMRMSDK.OAuthToken({
+  const user = new UserSignature(process.env.LEAD_NOTIFICATION_EMAIL);
+  const environment = USDataCenter.PRODUCTION();
+  const token = new OAuthToken({
       clientId: process.env.ZOHO_CLIENT_ID,
       clientSecret: process.env.ZOHO_CLIENT_SECRET,
       refreshToken: process.env.ZOHO_REFRESH_TOKEN,
   });
-  const sdkConfig = new ZCRMRMSDK.SDKConfig({});
-
-  await new ZCRMRMSDK.SDKInitializer(user, environment, token, sdkConfig, null);
+  const sdkConfig = new SDKConfig({});
+  await SDKInitializer.initialize(user, environment, token, sdkConfig, null);
   console.log("Zoho SDK Initialized Successfully.");
 }
 initializeZohoSDK();
@@ -68,30 +76,29 @@ async function sendToZohoCRM(threadId) {
       return;
     }
     
-    const recordOperations = new ZCRMRMSDK.Record.RecordOperations();
-    const requestBody = new ZCRMRMSDK.Record.BodyWrapper();
+    const recordOperations = new RecordOperations();
+    const requestBody = new BodyWrapper();
     const records = [];
-
-    const contactRecord = new ZCRMRMSDK.Record.Record();
-    contactRecord.addFieldValue(ZCRMRMSDK.Record.Field.Contacts.EMAIL, userEmail);
-    contactRecord.addFieldValue(ZCRMRMSDK.Record.Field.Contacts.LAST_NAME, userEmail.split('@')[0]);
-    contactRecord.addFieldValue(ZCRMRMSDK.Record.Field.Contacts.LEAD_SOURCE, "Chatbot");
+    const contactRecord = new Record();
+    contactRecord.addFieldValue(Field.Contacts.EMAIL, userEmail);
+    contactRecord.addFieldValue(Field.Contacts.LAST_NAME, userEmail.split('@')[0]);
+    contactRecord.addFieldValue(Field.Contacts.LEAD_SOURCE, "Chatbot");
     records.push(contactRecord);
     requestBody.setData(records);
 
     const contactResponse = await recordOperations.createRecords("Contacts", requestBody);
-    const actionResponse = contactResponse.body.data[0].details;
+    const actionResponse = contactResponse.body.getData()[0].getDetails();
     const contactId = actionResponse.id;
     console.log(`Created new contact in Zoho with ID: ${contactId}`);
 
-    const notesRequestBody = new ZCRMRMSDK.Record.BodyWrapper();
+    const notesRequestBody = new BodyWrapper();
     const notesRecords = [];
-    const noteRecord = new ZCRMRMSDK.Record.Record();
-    noteRecord.addFieldValue(ZCRMRMSDK.Record.Field.Notes.NOTE_TITLE, `Chatbot Transcript - ${new Date().toLocaleDateString()}`);
-    noteRecord.addFieldValue(ZCRMRMSDK.Record.Field.Notes.NOTE_CONTENT, transcript);
-    const parentRecord = new ZCRMRMSDK.Record.Record();
+    const noteRecord = new Record();
+    noteRecord.addFieldValue(Field.Notes.NOTE_TITLE, `Chatbot Transcript - ${new Date().toLocaleDateString()}`);
+    noteRecord.addFieldValue(Field.Notes.NOTE_CONTENT, transcript);
+    const parentRecord = new Record();
     parentRecord.setId(contactId);
-    noteRecord.addFieldValue(ZCRMRMSDK.Record.Field.Notes.PARENT_ID, parentRecord);
+    noteRecord.addFieldValue(Field.Notes.PARENT_ID, parentRecord);
     notesRecords.push(noteRecord);
     notesRequestBody.setData(notesRecords);
 
