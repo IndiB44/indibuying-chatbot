@@ -5,17 +5,26 @@ import dotenv from "dotenv";
 import path from "path";
 import OpenAI from "openai";
 
-// Corrected Zoho SDK imports for CommonJS compatibility
+// Corrected Zoho SDK imports using the default export for CJS compatibility
+import UserSignature_1 from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
+const UserSignature = UserSignature_1.UserSignature;
 import Initializer from "@zohocrm/nodejs-sdk-2.0/routes/initializer.js";
 const { SDKInitializer } = Initializer;
-import UserSignature from "@zohocrm/nodejs-sdk-2.0/routes/user_signature.js";
-import USDataCenter from "@zohocrm/nodejs-sdk-2.0/routes/dc/us_data_center.js";
-import OAuthToken from "@zohocrm/nodejs-sdk-2.0/models/authenticator/oauth_token.js";
-import SDKConfig from "@zohocrm/nodejs-sdk-2.0/routes/sdk_config.js";
-import RecordOperations from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
-import BodyWrapper from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/body_wrapper.js";
-import Record from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
-import Field from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/field.js";
+import USDataCenter_1 from "@zohocrm/nodejs-sdk-2.0/routes/dc/us_data_center.js";
+const USDataCenter = USDataCenter_1.USDataCenter;
+import OAuthToken_1 from "@zohocrm/nodejs-sdk-2.0/models/authenticator/oauth_token.js";
+const OAuthToken = OAuthToken_1.OAuthToken;
+import SDKConfig_1 from "@zohocrm/nodejs-sdk-2.0/routes/sdk_config.js";
+const SDKConfig = SDKConfig_1.SDKConfig;
+import RecordOperations_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
+const RecordOperations = RecordOperations_1.RecordOperations;
+import BodyWrapper_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/body_wrapper.js";
+const BodyWrapper = BodyWrapper_1.BodyWrapper;
+import Record_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
+const Record = Record_1.Record;
+import Field_1 from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/field.js";
+const Field = Field_1.Field;
+
 
 dotenv.config();
 
@@ -31,7 +40,7 @@ async function initializeZohoSDK() {
     return;
   }
   const user = new UserSignature(process.env.LEAD_NOTIFICATION_EMAIL);
-  const environment = USDataCenter.USDataCenter.PRODUCTION();
+  const environment = USDataCenter.PRODUCTION();
   const token = new OAuthToken({
       clientId: process.env.ZOHO_CLIENT_ID,
       clientSecret: process.env.ZOHO_CLIENT_SECRET,
@@ -87,8 +96,10 @@ async function sendToZohoCRM(threadId) {
     requestBody.setData(records);
 
     const contactResponse = await recordOperations.createRecords("Contacts", requestBody);
-    const actionResponse = contactResponse.body.getData()[0].getDetails();
-    const contactId = actionResponse.id;
+    const actionWrapper = contactResponse.body;
+    const actionResponses = actionWrapper.getData();
+    const successResponse = actionResponses[0];
+    const contactId = successResponse.getDetails().id;
     console.log(`Created new contact in Zoho with ID: ${contactId}`);
 
     const notesRequestBody = new BodyWrapper();
@@ -154,4 +165,4 @@ app.post("/webhook", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, ()
