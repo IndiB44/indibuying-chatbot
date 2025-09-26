@@ -253,22 +253,22 @@
 
     const startConversation = async () => {
       if (!threadId) {
-        const indicator = document.createElement('div');
-        indicator.classList.add('message', 'bot', 'typing-indicator');
-        indicator.innerHTML = '<span></span><span></span><span></span>';
-        messages.appendChild(indicator);
-        messages.scrollTop = messages.scrollHeight;
         try {
           const res = await fetch("/start", { method: "POST" });
           const data = await res.json();
-          messages.removeChild(indicator);
-          if (data.threadId && data.greeting) {
+
+          if (data.threadId) {
             threadId = data.threadId;
             sessionStorage.setItem("chatThreadId", threadId);
-            addMessage(data.greeting, "bot");
+            
+            // Display the two hard-coded welcome messages
+            addMessage("Hello 👋 — welcome to Indibuying! I’m your virtual assistant, here to help you source high-quality products from India.", "bot");
+            
+            setTimeout(() => {
+              addMessage("To get started, could I please get your name, company name, work email, and phone number?", "bot");
+            }, 1200); // 1.2-second delay
           }
         } catch (err) {
-          messages.removeChild(indicator);
           console.error("Failed to start conversation:", err);
           addMessage("Hello! I'm having a little trouble connecting right now.", "bot");
         }

@@ -4,54 +4,110 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import OpenAI from "openai";
+import { SDKInitializer, UserSignature, USDataCenter } from "@zohocrm/nodejs-sdk-2.0/routes/initializer.js";
+import { Record } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record.js";
+import { ModuleAPIName } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/module_api_name.js";
+import { APIResponse } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/api_response.js";
+import { RecordOperations } from "@zohocrm/nodejs-sdk-2.0/core/com/zoho/crm/api/record/record_operations.js";
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-
-// Serve static files from 'public' folder
 app.use(express.static("public"));
 
-// Serve index.html at root
+// --- Zoho CRM SDK Initialization ---
+async function initializeZohoSDK() {
+  if (!process.env.ZOHO_CLIENT_ID || !process.env.LEAD_NOTIFICATION_EMAIL) {
+    console.log("Zoho credentials not fully configured. SDK not initialized.");
+    return;
+  }
+  const user = new UserSignature(process.env.LEAD_NOTIFICATION_EMAIL);
+  const environment = USDataCenter.PRODUCTION();
+  const token = {
+      clientId: process.env.ZOHO_CLIENT_ID,
+      clientSecret: process.env.ZOHO_CLIENT_SECRET,
+      refreshToken: process.env.ZOHO_REFRESH_TOKEN,
+  };
+  await SDKInitializer.initialize(user, environment, token, null, null);
+  console.log("Zoho SDK Initialized Successfully.");
+}
+initializeZohoSDK();
+// --- End Zoho Initialization ---
+
+
 app.get("/", (req, res) => {
   res.sendFile(path.resolve("public/index.html"));
 });
 
-// Initialize OpenAI client
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Endpoint to start a new conversation and get a greeting
-app.post("/start", async (req, res) => {
+// Function to send the conversation to Zoho CRM
+async function sendToZohoCRM(threadId) {
+  if (!process.env.ZOHO_CLIENT_ID) {
+    console.log("Zoho credentials not configured. Skipping CRM integration.");
+    return;
+  }
   try {
-    console.log("Starting a new conversation.");
-    const thread = await client.beta.threads.create();
+    const messagesList = await client.beta.threads.messages.list(threadId);
+    let transcript = "";
+    for (const message of messagesList.data.reverse()) {
+      const role = message.role === "user" ? "User" : "Assistant";
+      const content = message.content[0].text.value;
+      transcript += `${role}: ${content}\n\n`;
+    }
+    
+    const emailMatch = transcript.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+    const userEmail = emailMatch ? emailMatch[0] : null;
 
-    // Run the assistant on the empty thread to get the initial greeting
-    const run = await client.beta.threads.runs.create(thread.id, {
-      assistant_id: process.env.ASSISTANT_ID,
-    });
+    if (!userEmail) {
+      console.log("No email found in transcript. Cannot create CRM contact.");
+      return;
+    }
+    
+    const recordOperations = new RecordOperations();
+    const requestBody = { data: [] };
+    const contactRecord = new Record();
+    contactRecord.addFieldValue(Record.Field.Contacts.EMAIL, userEmail);
+    contactRecord.addFieldValue(Record.Field.Contacts.LAST_NAME, userEmail.split('@')[0]);
+    contactRecord.addFieldValue(Record.Field.Contacts.LEAD_SOURCE, "Chatbot");
+    requestBody.data.push(contactRecord);
 
-    // Wait for the run to complete
-    let runStatus;
-    do {
-      runStatus = await client.beta.threads.runs.retrieve(thread.id, run.id);
-      if (runStatus.status === "completed") break;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } while (true);
+    const contactsModuleName = new ModuleAPIName("Contacts");
+    const contactResponse = await recordOperations.createRecords(contactsModuleName, requestBody);
+    const contactId = contactResponse.body.data[0].details.id;
+    console.log(`Created new contact in Zoho with ID: ${contactId}`);
 
-    // Get the assistant's greeting message
-    const messages = await client.beta.threads.messages.list(thread.id);
-    const greeting = messages.data.find(m => m.role === 'assistant').content[0].text.value;
+    const notesRequestBody = { data: [] };
+    const noteRecord = new Record();
+    noteRecord.addFieldValue(Record.Field.Notes.NOTE_TITLE, `Chatbot Transcript - ${new Date().toLocaleDateString()}`);
+    noteRecord.addFieldValue(Record.Field.Notes.NOTE_CONTENT, transcript);
+    const parentRecord = new Record();
+    parentRecord.setId(contactId);
+    noteRecord.addFieldValue(Record.Field.Notes.PARENT_ID, parentRecord);
+    notesRequestBody.data.push(noteRecord);
 
-    // Send back the new threadId and the greeting
-    res.json({ threadId: thread.id, greeting: greeting });
+    const notesModuleName = new ModuleAPIName("Notes");
+    await recordOperations.createRecords(notesModuleName, notesRequestBody);
+    console.log(`Added transcript as a note for contact ${contactId}`);
 
   } catch (error) {
-    console.error("Error starting conversation:", error);
+    console.error("Error sending data to Zoho CRM:", error);
+  }
+}
+
+// Endpoint to start a new conversation
+app.post("/start", async (req, res) => {
+  try {
+    console.log("Creating a new thread for a new conversation.");
+    const thread = await client.beta.threads.create();
+    // Only send back the threadId. The front-end will handle the greeting.
+    res.json({ threadId: thread.id });
+  } catch (error) {
+    console.error("Error creating thread:", error);
     res.status(500).json({ error: "Could not start conversation." });
   }
 });
@@ -61,49 +117,32 @@ app.post("/webhook", async (req, res) => {
   try {
     const { message: userMessage, threadId: existingThreadId } = req.body;
     let thread;
+    if (existingThreadId) { thread = { id: existingThreadId }; } 
+    else { thread = await client.beta.threads.create(); }
 
-    if (existingThreadId) {
-      // If a threadId was passed from the front-end, use it
-      console.log(`Continuing with existing thread: ${existingThreadId}`);
-      thread = { id: existingThreadId };
-    } else {
-      // If no threadId, create a new one (fallback, should be created by /start)
-      console.log("Creating a new thread from webhook.");
-      thread = await client.beta.threads.create();
-    }
-
-    // Add user's message to the thread
-    await client.beta.threads.messages.create(thread.id, {
-      role: "user",
-      content: userMessage,
-    });
-
-    // Run the assistant
-    const run = await client.beta.threads.runs.create(thread.id, {
-      assistant_id: process.env.ASSISTANT_ID,
-    });
-
-    // Wait until run completes
+    await client.beta.threads.messages.create(thread.id, { role: "user", content: userMessage });
+    const run = await client.beta.threads.runs.create(thread.id, { assistant_id: process.env.ASSISTANT_ID });
+    
     let runStatus;
     do {
       runStatus = await client.beta.threads.runs.retrieve(thread.id, run.id);
       if (runStatus.status === "completed") break;
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } while (true);
-
-    // Get the latest assistant reply
+    
     const messages = await client.beta.threads.messages.list(thread.id);
     const assistantReply = messages.data.find(m => m.role === 'assistant').content[0].text.value;
 
-    // Respond with the reply AND the threadId
-    res.json({ reply: assistantReply, threadId: thread.id });
+    if (assistantReply.toLowerCase().includes("our sourcing agent will connect")) {
+      await sendToZohoCRM(thread.id);
+    }
 
+    res.json({ reply: assistantReply, threadId: thread.id });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error in webhook:", error);
     res.status(500).json({ reply: "Sorry, there was an error processing your request." });
   }
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
