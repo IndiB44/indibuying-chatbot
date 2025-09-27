@@ -28,7 +28,10 @@ async function sendToGoogleSheet(threadId) {
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
     const sheets = google.sheets({ version: "v4", auth });
-    const messagesList = await client.beta.threads.messages..list(threadId);
+    
+    // THIS IS THE CORRECTED LINE:
+    const messagesList = await client.beta.threads.messages.list(threadId);
+    
     let transcript = "";
     let finalBotMessage = "";
     for (const message of messagesList.data.reverse()) {
@@ -81,14 +84,13 @@ app.post("/webhook", async (req, res) => {
       if (runStatus.status === "completed") break;
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } while (true);
-    const messages = await client.beta.threads.messages.list(thread.id);
+    const messages = await client.beta.threads.messages.list(threadId);
     const assistantReply = messages.data.find(m => m.role === 'assistant').content[0].text.value;
 
     if (assistantReply.toLowerCase().includes("our sourcing agent will connect")) {
       await sendToGoogleSheet(thread.id);
     }
     
-    // **THIS IS THE FIX:** We split the message and only send the first part to the user.
     const userFacingReply = assistantReply.split('###JSON_DATA###')[0].trim();
     res.json({ reply: userFacingReply, threadId: thread.id });
 
