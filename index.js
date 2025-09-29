@@ -81,15 +81,17 @@ app.post("/webhook", async (req, res) => {
       if (runStatus.status === "completed") break;
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } while (true);
-    const messages = await client.beta.threads.messages.list(threadId);
+    
+    // THIS IS THE CORRECTED LINE:
+    const messages = await client.beta.threads.messages.list(thread.id);
+    
     const assistantReply = messages.data.find(m => m.role === 'assistant').content[0].text.value;
 
     if (assistantReply.toLowerCase().includes("our sourcing agent will connect")) {
-      await sendToGoogleSheet(threadId);
+      await sendToGoogleSheet(thread.id);
     }
     
-    // **THIS IS THE FIX:** Using a more robust method to find and remove the data block.
-    const userFacingReply = assistantReply.replace(/###JSON_DATA###[\s\S]*$/, "").trim();
+    const userFacingReply = assistantReply.split('###JSON_DATA###')[0].trim();
     res.json({ reply: userFacingReply, threadId: thread.id });
 
   } catch (error) {
