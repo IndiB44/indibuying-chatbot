@@ -21,22 +21,14 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Function to send the conversation to Google Sheets
 async function sendToGoogleSheet(threadId) {
-  console.log("Attempting to send data to Google Sheets...");
   try {
-    console.log("Authenticating with Google...");
     const auth = new google.auth.GoogleAuth({
       credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
-
     const sheets = google.sheets({ version: "v4", auth });
-    console.log("Google authentication successful.");
-    
-    console.log(`Fetching messages for thread: ${threadId}`);
     const messagesList = await client.beta.threads.messages.list(threadId);
-    
     let transcript = "";
     let finalBotMessage = "";
     for (const message of messagesList.data.reverse()) {
@@ -47,41 +39,24 @@ async function sendToGoogleSheet(threadId) {
         finalBotMessage = content;
       }
     }
-
-    console.log("Parsing final bot message for JSON data...");
     const jsonMatch = finalBotMessage.match(/```json\s*([\s\S]*?)\s*```/);
     let contactInfo = { name: "Not provided", company: "Not provided", email: "Not provided", phone: "Not provided" };
-
     if (jsonMatch && jsonMatch[1]) {
       contactInfo = JSON.parse(jsonMatch[1]);
-      console.log("Successfully parsed contact info:", contactInfo);
-    } else {
-      console.log("No JSON data block found in final message.");
     }
-    
     const newRow = [ new Date().toISOString(), contactInfo.name || "Not provided", contactInfo.company || "Not provided", contactInfo.email || "Not provided", contactInfo.phone || "Not provided", transcript.trim(), threadId ];
-
-    console.log("Appending new row to spreadsheet...");
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.SPREADSHEET_ID,
       range: "Sheet1!A:G",
       valueInputOption: "USER_ENTERED",
-      resource: {
-        values: [newRow],
-      },
+      resource: { values: [newRow] },
     });
-
     console.log(`Successfully added lead to Google Sheet for thread ${threadId}`);
-
   } catch (error) {
-    // This will print the detailed error to the Render logs
-    console.error("CRITICAL ERROR in sendToGoogleSheet:", error);
+    console.error("Error sending data to Google Sheets:", error);
   }
 }
 
-// ... (The rest of your file remains the same) ...
-
-// Endpoint to start a new conversation
 app.post("/start", async (req, res) => {
   try {
     const thread = await client.beta.threads.create();
@@ -92,36 +67,32 @@ app.post("/start", async (req, res) => {
   }
 });
 
-// Webhook to handle chatbot messages
 app.post("/webhook", async (req, res) => {
   try {
     const { message: userMessage, threadId: existingThreadId } = req.body;
     let thread;
     if (existingThreadId) { thread = { id: existingThreadId }; } 
     else { thread = await client.beta.threads.create(); }
-
     await client.beta.threads.messages.create(thread.id, { role: "user", content: userMessage });
     const run = await client.beta.threads.runs.create(thread.id, { assistant_id: process.env.ASSISTANT_ID });
-    
     let runStatus;
     do {
       runStatus = await client.beta.threads.runs.retrieve(thread.id, run.id);
       if (runStatus.status === "completed") break;
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } while (true);
-    
-    const messages = await client.beta.threads.messages.list(thread.id);
+    const messages = await client.beta.threads.messages.list(threadId);
     const assistantReply = messages.data.find(m => m.role === 'assistant').content[0].text.value;
 
     if (assistantReply.toLowerCase().includes("our sourcing agent will connect")) {
-      await sendToGoogleSheet(thread.id);
+      await sendToGoogleSheet(threadId);
     }
     
-    const userFacingReply = assistantReply.split('###JSON_DATA###')[0].trim();
+    // **THIS IS THE FIX:** Using a more robust method to find and remove the data block.
+    const userFacingReply = assistantReply.replace(/###JSON_DATA###[\s\S]*$/, "").trim();
     res.json({ reply: userFacingReply, threadId: thread.id });
 
-  } catch (error)
- {
+  } catch (error) {
     console.error("Error in webhook:", error);
     res.status(500).json({ reply: "Sorry, there was an error processing your request." });
   }
